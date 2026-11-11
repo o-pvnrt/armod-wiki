@@ -54,11 +54,12 @@ The "Wiki Guide" book inside the wiki explains this in more detail.
 python wiki.py build
 ```
 
+Writes a static copy to `site/` that any web server can host. If it will live in a
+sub-folder (for example `https://example.org/wiki`), set `"base_url": "/wiki"` in `wiki.json` first.
+
 ## Publish on GitHub Pages
 
 `.github/workflows/pages.yml` builds the static copy and publishes it every time `main`
-is pushed. One-time setup on GitHub: **Settings > Pages > Source: GitHub Actions**.
-The published site is read-only; edit locally, commit and push to update it.
-
-`python wiki.py build` writes a static copy to `site/` that any web server can host. If it will live in a
-sub-folder (for example `https://example.org/wiki`), set `"base_url": "/wiki"` in `wiki.json` first.
+is pushed (it sets the sub-folder by itself). One-time setup on GitHub:
+**Settings > Pages > Source: GitHub Actions**. The published site is read-only; edit
+locally, commit and push to update it.
