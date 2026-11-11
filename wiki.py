@@ -8,6 +8,7 @@ import argparse
 import html
 import json
 import mimetypes
+import os
 import re
 import shutil
 import unicodedata
@@ -803,7 +804,8 @@ def serve(port):
 def build():
     global BASE, EDIT
     EDIT = False
-    BASE = CONFIG.get("base_url", "").rstrip("/")
+    # WIKI_BASE_URL (set by the GitHub Pages workflow) overrides wiki.json.
+    BASE = os.environ.get("WIKI_BASE_URL", CONFIG.get("base_url", "")).rstrip("/")
     site = Site()
     if OUT.exists():
         shutil.rmtree(OUT)
