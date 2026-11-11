@@ -18,6 +18,10 @@ content/
 Items are sorted by file name. Prefix a name with a number (`01-`, `02-`, ...) to control
 the order; the prefix is removed from titles and web addresses.
 
+In the browser, the *Reorder* action on the home page and on every shelf, book and chapter
+lets you drag items into a new order. Saving renumbers the prefixes for you and updates
+links that point to the renamed files.
+
 ## Titles and descriptions
 
 - A **page** takes its title from its first `# Heading`. Without one, the file name is used.

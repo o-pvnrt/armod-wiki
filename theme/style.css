@@ -255,6 +255,24 @@ mark { background: #fff2a8; color: #222; border-radius: 2px; padding: 0 1px; }
 .error { color: #c0392b; font-weight: 600; }
 .preview { margin-bottom: 18px; padding: 20px 24px; border: 1px dashed var(--border); border-radius: 4px; }
 
+/* ---------- reordering ---------- */
+.sortable { list-style: none; margin: 0 0 20px; padding: 0; }
+.sortable li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  padding: 8px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: grab;
+}
+.sortable li span { flex: 1; min-width: 0; color: var(--heading); }
+.sortable li.dragging { opacity: 0.4; }
+.sortable .btn { padding: 2px 10px; }
+.sortable li:first-child [data-move="up"], .sortable li:last-child [data-move="down"] { opacity: 0.3; pointer-events: none; }
+
 /* ---------- page content ---------- */
 .content { padding: 36px 48px; }
 .content > h1 { font-size: 2.3rem; line-height: 1.25; margin-bottom: 20px; }

@@ -1,7 +1,7 @@
 # Welcome
 
 This wiki is a set of Markdown files in the `content/` folder. There is no database and
-no editor to log in to: you edit files, refresh the browser, and the change is there.
+no editor to log in to: you edit files, refresh the browser, and the change is there. All the changes are then pushed to a Github repo that publishes the page.
 
 ## How content is organised
 

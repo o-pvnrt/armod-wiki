@@ -46,6 +46,38 @@
     });
   }
 
+  // ---- reordering: arrows and drag and drop ----
+  var sortable = document.querySelector('.sortable');
+  if (sortable) {
+    var dragged = null;
+    sortable.addEventListener('click', function (e) {
+      var btn = e.target.closest('[data-move]');
+      if (!btn) return;
+      var li = btn.closest('li');
+      if (btn.dataset.move === 'up' && li.previousElementSibling) sortable.insertBefore(li, li.previousElementSibling);
+      if (btn.dataset.move === 'down' && li.nextElementSibling) sortable.insertBefore(li.nextElementSibling, li);
+      btn.focus();
+    });
+    sortable.addEventListener('dragstart', function (e) {
+      dragged = e.target.closest('li');
+      dragged.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', '');
+    });
+    sortable.addEventListener('dragover', function (e) {
+      if (!dragged) return;
+      e.preventDefault();
+      var over = e.target.closest('li');
+      if (!over || over === dragged) return;
+      var box = over.getBoundingClientRect();
+      sortable.insertBefore(dragged, e.clientY < box.top + box.height / 2 ? over : over.nextSibling);
+    });
+    sortable.addEventListener('dragend', function () {
+      if (dragged) dragged.classList.remove('dragging');
+      dragged = null;
+    });
+  }
+
   // ---- theme and list/grid toggles ----
   function labels() {
     document.querySelectorAll('[data-label="theme"]').forEach(function (el) {

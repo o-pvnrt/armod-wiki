@@ -55,6 +55,7 @@ ICONS = {
     "plus": '<path d="M10.75 4h2.5v6.75H20v2.5h-6.75V20h-2.5v-6.75H4v-2.5h6.75z"/>',
     "edit": '<path d="M16.8 3.2l4 4L8.5 19.5l-5 1 1-5zM5.9 16.3l-.4 2.2 2.2-.4z"/>',
     "trash": '<path d="M9 3h6l1 2h4v2H4V5h4zM6 9h12l-1 12H7z"/>',
+    "sort": '<path d="M8 4l4 4.5H9.25V20h-2.5V8.5H4zM16 20l-4-4.5h2.75V4h2.5v11.5H20z"/>',
     "logo": '<path d="M12 2l9 5v10l-9 5-9-5V7zm0 2.300L5.800 7.700 12 11.200l6.200-3.500zM5 9.400v6.400l6 3.400v-6.400zm14 0l-6 3.400v6.400l6-3.400z"/>',
 }
 
@@ -284,6 +285,39 @@ class Site:
         return (self.act(f"Edit {node.kind}", "edit", url(f"/edit/?at={at}"))
                 + self.act(f"Delete {node.kind}", "trash", url(f"/delete/?at={at}")))
 
+    def reorder_link(self, node=None):
+        items = node.children if node else self.shelves
+        if not EDIT or len(items) < 2:
+            return ""
+        at = f"?at={quote(node.url)}" if node else ""
+        return self.act(f"Reorder {REORDER_WHAT[node.kind if node else None]}", "sort", url(f"/reorder/{at}"))
+
+    def reorder_page(self, node=None, error=""):
+        heading = f"Reorder {REORDER_WHAT[node.kind if node else None]}"
+        rows = "".join(
+            f'<li class="kind-{n.kind}" draggable="true">'
+            f'<input type="hidden" name="item" value="{esc(n.path.name)}">{icon(n.kind)}<span>{esc(n.title)}</span>'
+            '<button type="button" class="btn ghost small" data-move="up" title="Move up" aria-label="Move up">'
+            '&uarr;</button>'
+            '<button type="button" class="btn ghost small" data-move="down" title="Move down" aria-label="Move down">'
+            '&darr;</button></li>'
+            for n in (node.children if node else self.shelves)
+        )
+        where = f'In {node.kind} "{esc(node.title)}". ' if node else ""
+        err = f'<p class="error">{esc(error)}</p>' if error else ""
+        book = node.book if node else None
+        return self.layout(
+            heading,
+            f'<section class="panel"><h1>{heading}</h1>{err}'
+            f'<p class="lead">{where}Drag the items or use the arrows, then save. Saving renumbers the '
+            'files on disk and updates links that point to them.</p>'
+            f'<form method="post"><ol class="sortable">{rows}</ol><div class="buttons">'
+            '<button class="btn" type="submit">Save order</button>'
+            f'<a class="btn ghost" href="{node.url if node else url("/")}">Cancel</a></div></form></section>',
+            left=self.book_nav(book, node) if book else "",
+            crumbs=self.crumbs(node, extra="Reorder"),
+        )
+
     def form_page(self, kind, parent=None, node=None, values=None, error=""):
         v = values or {}
         heading = f"Edit {kind}" if node else f"New {kind}"
@@ -437,7 +471,8 @@ if(t==='dark')d.dataset.theme='dark';if(v==='list')d.dataset.view='list'}})()</s
             '<section class="panel"><h1>Shelves</h1>'
             + self.grid(self.shelves, "No shelves yet.")
             + "</section>",
-            left=self.actions(extra=self.new_link("shelf")) + self.mini_list("Recent books", recent_books),
+            left=self.actions(extra=self.new_link("shelf") + self.reorder_link())
+            + self.mini_list("Recent books", recent_books),
             right=self.mini_list("Recently updated pages", recent_pages),
         )
         r["/books/"] = self.layout(
@@ -465,7 +500,8 @@ if(t==='dark')d.dataset.theme='dark';if(v==='list')d.dataset.view='list'}})()</s
                 f'<section class="panel"><h1>{esc(shelf.title)}</h1>{desc}'
                 + self.grid(shelf.children, "This shelf has no books yet.")
                 + "</section>",
-                left=self.actions(extra=self.new_link("book", shelf) + self.edit_link(shelf)) + self.details(shelf),
+                left=self.actions(extra=self.new_link("book", shelf) + self.edit_link(shelf)
+                                  + self.reorder_link(shelf)) + self.details(shelf),
                 right=self.mini_list("Recent books", recent_books),
                 crumbs=self.crumbs(shelf),
             )
@@ -480,7 +516,7 @@ if(t==='dark')d.dataset.theme='dark';if(v==='list')d.dataset.view='list'}})()</s
                 book.title,
                 f'<section class="panel"><h1>{esc(book.title)}</h1>{desc}{body}</section>',
                 left=self.actions(False, self.new_link("page", book) + self.new_link("chapter", book)
-                                  + self.edit_link(book)) + self.details(book),
+                                  + self.edit_link(book) + self.reorder_link(book)) + self.details(book),
                 right=self.book_nav(book, book),
                 crumbs=self.crumbs(book),
             )
@@ -492,8 +528,8 @@ if(t==='dark')d.dataset.theme='dark';if(v==='list')d.dataset.view='list'}})()</s
                     chapter.title,
                     f'<section class="panel"><h1>{esc(chapter.title)}</h1>{cdesc}{cbody}</section>',
                     left=self.book_nav(book, chapter),
-                    right=self.actions(False, self.new_link("page", chapter) + self.edit_link(chapter))
-                    + self.details(chapter),
+                    right=self.actions(False, self.new_link("page", chapter) + self.edit_link(chapter)
+                                       + self.reorder_link(chapter)) + self.details(chapter),
                     crumbs=self.crumbs(chapter),
                 )
             for i, page in enumerate(flat):
@@ -549,6 +585,8 @@ if(t==='dark')d.dataset.theme='dark';if(v==='list')d.dataset.view='list'}})()</s
 # ---------- editing ----------
 
 ALLOWED_PARENT = {"shelf": (None,), "book": ("shelf",), "chapter": ("book",), "page": ("book", "chapter")}
+REORDER_WHAT = {None: "shelves", "shelf": "books", "book": "contents", "chapter": "pages"}
+LINK = re.compile(r"(\]\(\s*<?|^ {0,3}\[[^\]\n]+\]:[ \t]*<?)([^)\s>]+)", re.M)
 
 
 def edit_context(site, path, query):
@@ -639,6 +677,98 @@ def trash(node):
     shutil.move(str(node.path), str(bin_dir / f"{datetime.now():%Y%m%d-%H%M%S}-{node.path.name}"))
 
 
+def reorder_target(site, query):
+    """What a /reorder/ request sorts the children of: (found, node), where no node means the shelves."""
+    at = query.get("at", [""])[0]
+    node = site.by_route.get(at)
+    return (not at or bool(node and node.kind != "page")), node
+
+
+def reorder(nodes, names):
+    """Renumber the name prefixes of sibling items so they sort as `names`, keeping links to them working."""
+    paths = {n.path.name: n.path.resolve() for n in nodes}
+    if sorted(names) != sorted(paths):
+        raise ValueError("The contents changed in the meantime. Please try again.")
+    width = max(2, len(str(len(names))))
+    moves = {}
+    for i, name in enumerate(names, 1):
+        new = paths[name].with_name(f"{i:0{width}d}-{strip_order(name)}")
+        if new != paths[name]:
+            moves[paths[name]] = new
+    for new in moves.values():
+        if new.exists() and new not in moves:
+            raise ValueError(f"Cannot renumber: {new.name} already exists.")
+    edits = relink(moves)
+    rename_all(moves)
+    for path, text in edits.items():
+        path.write_bytes(text.encode("utf-8"))
+
+
+def relink(moves):
+    """The Markdown link edits a set of renames calls for: {page path after the renames: new text}."""
+    def after(path):
+        for old, new in moves.items():
+            if path == old or old in path.parents:
+                return new / path.relative_to(old)
+        return path
+
+    edits = {}
+    for md in CONTENT.rglob("*.md"):
+        if md.relative_to(CONTENT).parts[0] == "_trash":
+            continue
+
+        def fix(m):
+            target, sep, frag = m.group(2).partition("#")
+            if not target or re.match(r"([a-z][a-z0-9+.-]*:|/|\?)", target, re.I):
+                return m.group(0)
+            try:
+                dest = (md.parent / unquote(target)).resolve()
+                if not dest.exists() or not dest.is_relative_to(CONTENT):
+                    return m.group(0)
+                was = os.path.relpath(dest, md.parent)
+                now = os.path.relpath(after(dest), after(md).parent)
+            except (OSError, ValueError):
+                return m.group(0)
+            if was == now:
+                return m.group(0)
+            slash = "/" if target.endswith("/") else ""
+            return m.group(1) + quote(Path(now).as_posix()) + slash + sep + frag
+
+        try:
+            raw = md.read_bytes().decode("utf-8")
+        except UnicodeDecodeError:
+            continue
+        text = LINK.sub(fix, raw)
+        if text != raw:
+            edits[after(md)] = text
+    return edits
+
+
+def rename_all(moves):
+    """Rename every old -> new pair, going through temporary names so items can swap; undone on failure."""
+    def temp(old):
+        return old.with_name("_moving-" + old.name)
+
+    at = {}
+    try:
+        for old in moves:
+            old.rename(temp(old))
+            at[old] = temp(old)
+        for old, new in moves.items():
+            at[old].rename(new)
+            at[old] = new
+    except OSError:
+        for goal in (temp, lambda old: old):
+            for old, now in at.items():
+                try:
+                    if now != goal(old):
+                        now.rename(goal(old))
+                        at[old] = goal(old)
+                except OSError:
+                    pass
+        raise
+
+
 def parse_form(headers, raw):
     """Return (fields, files) from a urlencoded or multipart form body."""
     ctype = headers.get("Content-Type", "")
@@ -720,6 +850,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/delete/":
             node = site.by_route.get(parse_qs(urlparse(self.path).query).get("at", [""])[0])
             return self.send(200, site.delete_page(node)) if node else self.send(404, site.not_found())
+        if path == "/reorder/":
+            found, node = reorder_target(site, parse_qs(urlparse(self.path).query))
+            return self.send(200, site.reorder_page(node)) if found else self.send(404, site.not_found())
         if path in ("/new/", "/edit/"):
             ctx = edit_context(site, path, parse_qs(urlparse(self.path).query))
             return self.send(200, site.form_page(*ctx)) if ctx else self.send(404, site.not_found())
@@ -772,6 +905,18 @@ class Handler(BaseHTTPRequestHandler):
             except OSError as exc:
                 return self.send(500, site.delete_page(node, f"Could not delete: {exc!r}"))
             return self.send(303, "", headers=[("Location", back)])
+        if path == "/reorder/":
+            found, node = reorder_target(site, query)
+            if not found:
+                return self.send(404, site.not_found())
+            names = parse_qs(raw.decode("utf-8", "replace")).get("item", [])
+            try:
+                reorder(node.children if node else site.shelves, names)
+            except ValueError as exc:
+                return self.send(400, site.reorder_page(node, str(exc)))
+            except OSError as exc:
+                return self.send(500, site.reorder_page(node, f"Could not reorder: {exc!r}"))
+            return self.send(303, "", headers=[("Location", node.url if node else "/")])
         ctx = edit_context(site, path, query) if path in ("/new/", "/edit/") else None
         if not ctx:
             return self.send(404, site.not_found())

@@ -24,6 +24,9 @@ files in `content/`.
   text. Shelves and books can have a cover image (set it under *Edit*).
 - **Equations:** write LaTeX as `$...$` (inline) or `$$...$$` (own line). They are drawn
   by MathJax, which is loaded from a CDN, so equations need an internet connection.
+- **Reorder:** the home page and every shelf, book and chapter have a *Reorder* action.
+  Drag the items (or use the arrows) and save; the `01-`, `02-` ... prefixes are
+  renumbered on disk and Markdown links to the renamed files are updated.
 - **Delete:** every shelf, book, chapter and page has a *Delete* action. Deleted items
   are moved to `content/_trash`; move them back to restore, or empty that folder by hand.
 
