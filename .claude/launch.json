@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "wiki", "runtimeExecutable": "python", "runtimeArgs": ["wiki.py", "serve", "--port", "8000"], "port": 8000 }
+  ]
+}
