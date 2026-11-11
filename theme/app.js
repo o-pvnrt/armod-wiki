@@ -19,6 +19,19 @@
     var btn = e.target.closest('[data-action]');
     if (!btn) return;
     e.preventDefault();
+    if (btn.dataset.action === 'preview') {
+      var box = document.getElementById('preview');
+      if (!box.hidden) { box.hidden = true; btn.textContent = 'Preview'; return; }
+      fetch(base + '/preview', {
+        method: 'POST',
+        body: new URLSearchParams({ body: document.getElementById('editor').value })
+      }).then(function (r) { return r.text(); }).then(function (out) {
+        box.innerHTML = out || '<p class="empty">Nothing to preview yet.</p>';
+        box.hidden = false;
+        btn.textContent = 'Hide preview';
+      });
+      return;
+    }
     if (btn.dataset.action === 'theme') {
       var dark = root.dataset.theme !== 'dark';
       if (dark) root.dataset.theme = 'dark'; else delete root.dataset.theme;

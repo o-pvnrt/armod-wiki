@@ -206,6 +206,43 @@ mark { background: #fff2a8; color: #222; border-radius: 2px; padding: 0 1px; }
 }
 .search-big input:focus { border-color: var(--primary); }
 
+/* ---------- forms ---------- */
+.edit label { display: block; margin-bottom: 18px; font-weight: 600; color: var(--heading); font-size: 0.9rem; }
+.edit label small { font-weight: 400; color: var(--muted); }
+.edit input, .edit textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px 12px;
+  font: inherit;
+  font-weight: 400;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  outline: none;
+  resize: vertical;
+}
+.edit #editor { font: 0.9rem/1.55 Consolas, "Cascadia Mono", Menlo, monospace; }
+.edit input:focus, .edit textarea:focus { border-color: var(--primary); }
+.buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+.btn {
+  display: inline-block;
+  padding: 8px 20px;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: #206ea7;
+  border: 1px solid #206ea7;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.btn:hover { background: #185a8a; text-decoration: none; }
+.btn.ghost { color: var(--text); background: transparent; border-color: var(--border); }
+.btn.ghost:hover { background: var(--hover); }
+.error { color: #c0392b; font-weight: 600; }
+.preview { margin-bottom: 18px; padding: 20px 24px; border: 1px dashed var(--border); border-radius: 4px; }
+
 /* ---------- page content ---------- */
 .content { padding: 36px 48px; }
 .content > h1 { font-size: 2.3rem; line-height: 1.25; margin-bottom: 20px; }
