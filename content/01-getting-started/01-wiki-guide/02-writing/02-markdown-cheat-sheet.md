@@ -27,6 +27,35 @@ def checksum(data: bytes) -> int:
 | Voltage   |   3.3 | V    |
 | Current   |   120 | mA   |
 
+## Images
+
+In the page editor, click **Insert image**, or paste or drop an image into the text. The
+file is stored next to the page in an `_images` folder and a line like this is added:
+
+```markdown
+![Wiring diagram](_images/wiring-diagram.png)
+```
+
+Add `{ width=300 }` right after the closing bracket to set a size.
+
+## Equations
+
+Write LaTeX between dollar signs. Inline: $E = mc^2$ and $v_{orb} = \sqrt{\mu / r}$.
+
+On its own line, with double dollar signs:
+
+$$
+\Delta v = I_{sp} \, g_0 \ln\!\left(\frac{m_0}{m_f}\right)
+$$
+
+```markdown
+Inline: $E = mc^2$
+
+$$
+\Delta v = I_{sp} \, g_0 \ln\!\left(\frac{m_0}{m_f}\right)
+$$
+```
+
 ## Call-outs
 
 !!! note

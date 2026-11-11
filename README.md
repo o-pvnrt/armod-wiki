@@ -20,7 +20,14 @@ Use `python wiki.py --port 8080` for another port.
 everything. Pages are written in Markdown with a live preview. Everything is saved as
 files in `content/`.
 
-Deleting, moving and renaming addresses is done on disk. The server only listens on
+- **Images:** in the page editor use *Insert image*, or paste or drop an image into the
+  text. Shelves and books can have a cover image (set it under *Edit*).
+- **Equations:** write LaTeX as `$...$` (inline) or `$$...$$` (own line). They are drawn
+  by MathJax, which is loaded from a CDN, so equations need an internet connection.
+- **Delete:** every shelf, book, chapter and page has a *Delete* action. Deleted items
+  are moved to `content/_trash`; move them back to restore, or empty that folder by hand.
+
+Moving items and renaming addresses is done on disk. The server only listens on
 this computer (`127.0.0.1`) and has no login, so do not expose it to a network as is.
 
 **On disk:** create folders and files directly:

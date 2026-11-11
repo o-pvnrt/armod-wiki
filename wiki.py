@@ -11,6 +11,9 @@ import mimetypes
 import re
 import shutil
 import unicodedata
+from email import policy
+from email.parser import BytesParser
+from types import SimpleNamespace
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -27,6 +30,15 @@ CONFIG_FILE = ROOT / "wiki.json"
 CONFIG = {"name": "Wiki", "base_url": "", "footer": ""}
 BASE = ""
 EDIT = True  # in-browser creating/editing; switched off for static builds
+MAX_UPLOAD = 20_000_000
+IMAGE_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
+IMAGE_ERROR = "Only PNG, JPG, GIF, WebP and SVG images can be added."
+
+# Equations are rendered in the browser by MathJax (loaded from a CDN, so it needs internet access).
+MATHJAX = r"""<script>window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']],tags:'ams'},
+options:{ignoreHtmlClass:'.*',processHtmlClass:'arithmatex'}}</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js"></script>
+"""
 
 esc = html.escape
 
@@ -41,6 +53,7 @@ ICONS = {
     "tag": '<path d="M3 3h8l10 10-8 8L3 11zm4.500 3a1.500 1.500 0 1 0 0 3 1.500 1.500 0 0 0 0-3z"/>',
     "plus": '<path d="M10.75 4h2.5v6.75H20v2.5h-6.75V20h-2.5v-6.75H4v-2.5h6.75z"/>',
     "edit": '<path d="M16.8 3.2l4 4L8.5 19.5l-5 1 1-5zM5.9 16.3l-.4 2.2 2.2-.4z"/>',
+    "trash": '<path d="M9 3h6l1 2h4v2H4V5h4zM6 9h12l-1 12H7z"/>',
     "logo": '<path d="M12 2l9 5v10l-9 5-9-5V7zm0 2.300L5.800 7.700 12 11.200l6.200-3.500zM5 9.400v6.400l6 3.400v-6.400zm14 0l-6 3.400v6.400l6-3.400z"/>',
 }
 
@@ -59,7 +72,10 @@ def slugify(name):
 
 
 def render_markdown(text):
-    md = markdown.Markdown(extensions=["extra", "toc", "sane_lists", "admonition"])
+    md = markdown.Markdown(
+        extensions=["extra", "toc", "sane_lists", "admonition", "pymdownx.arithmatex"],
+        extension_configs={"pymdownx.arithmatex": {"generic": True}},
+    )
     return md.convert(text), md.toc_tokens
 
 
@@ -261,7 +277,11 @@ class Site:
         return self.act(f"New {kind}", "plus", url(f"/new/?kind={kind}{where}"))
 
     def edit_link(self, node):
-        return self.act(f"Edit {node.kind}", "edit", url(f"/edit/?at={quote(node.url)}")) if EDIT else ""
+        if not EDIT:
+            return ""
+        at = quote(node.url)
+        return (self.act(f"Edit {node.kind}", "edit", url(f"/edit/?at={at}"))
+                + self.act(f"Delete {node.kind}", "trash", url(f"/delete/?at={at}")))
 
     def form_page(self, kind, parent=None, node=None, values=None, error=""):
         v = values or {}
@@ -271,15 +291,28 @@ class Site:
         fields = (f'<label>Title<input name="title" value="{esc(title)}" required autofocus '
                   f'maxlength="120" autocomplete="off"></label>')
         buttons = '<button class="btn" type="submit">Save</button>'
+        attrs = ""
         if kind == "page":
             body = v.get("body", node.body.strip("\n") if node else "")
-            fields += ('<label>Content <small>(Markdown)</small>'
-                       f'<textarea name="body" id="editor" rows="22">\n{esc(body)}</textarea></label>'
+            fields += ('<label for="editor">Content <small>(Markdown)</small></label>'
+                       '<div class="toolbar">'
+                       '<button type="button" class="btn ghost small" data-action="image">Insert image</button>'
+                       '<button type="button" class="btn ghost small" data-action="equation">Insert equation</button>'
+                       '<input type="file" id="image-file" accept="image/*" hidden>'
+                       '<span id="upload-status" class="hint">You can also paste or drop images into the text.'
+                       '</span></div>'
+                       f'<textarea name="body" id="editor" rows="22">\n{esc(body)}</textarea>'
                        '<div id="preview" class="content preview" hidden></div>')
+            attrs = f' data-in="{esc((node.parent if node else parent).url)}"'
             buttons += '<button type="button" class="btn ghost" data-action="preview">Preview</button>'
         else:
             desc = v.get("description", node.desc if node else "")
             fields += f'<label>Description<textarea name="description" rows="3">\n{esc(desc)}</textarea></label>'
+            if kind in ("shelf", "book"):
+                note = "leave empty to keep the current one" if node and node.cover else "optional"
+                fields += (f'<label>Cover image <small>({note})</small>'
+                           '<input type="file" name="cover" accept="image/*"></label>')
+                attrs = ' enctype="multipart/form-data"'
         buttons += f'<a class="btn ghost" href="{back}">Cancel</a>'
         where = f'<p class="lead">In {parent.kind} "{esc(parent.title)}"</p>' if parent and not node else ""
         err = f'<p class="error">{esc(error)}</p>' if error else ""
@@ -288,9 +321,32 @@ class Site:
         return self.layout(
             heading,
             f'<section class="panel"><h1>{heading}</h1>{where}{err}'
-            f'<form class="edit" method="post">{fields}<div class="buttons">{buttons}</div></form></section>',
+            f'<form class="edit" method="post"{attrs}>{fields}<div class="buttons">{buttons}</div></form></section>',
             left=self.book_nav(book, node) if book else "",
             crumbs=self.crumbs(anchor, extra=heading),
+            math=kind == "page",
+        )
+
+    def delete_page(self, node, error=""):
+        if node.kind == "shelf":
+            pages = sum(len(list(b.pages())) for b in node.children)
+            inside = f"This also removes the {len(node.children)} book(s) and {pages} page(s) on it."
+        elif node.kind != "page":
+            inside = f"This also removes the {len(list(node.pages()))} page(s) inside it."
+        else:
+            inside = ""
+        err = f'<p class="error">{esc(error)}</p>' if error else ""
+        book = node.book
+        return self.layout(
+            f"Delete {node.kind}",
+            f'<section class="panel"><h1>Delete {node.kind}</h1>{err}'
+            f'<p>Delete the {node.kind} <strong>{esc(node.title)}</strong>? {inside}</p>'
+            '<p class="lead">It is moved to the <code>content/_trash</code> folder, so it can be '
+            'restored by moving it back.</p>'
+            '<form method="post"><div class="buttons"><button class="btn danger" type="submit">Delete</button>'
+            f'<a class="btn ghost" href="{node.url}">Cancel</a></div></form></section>',
+            left=self.book_nav(book, node) if book else "",
+            crumbs=self.crumbs(node, extra="Delete"),
         )
 
     def actions(self, view_toggle=True, extra=""):
@@ -331,7 +387,7 @@ class Site:
             parts.append(f"<span>{esc(extra)}</span>")
         return '<nav class="crumbs">' + '<span class="sep">›</span>'.join(parts) + "</nav>"
 
-    def layout(self, title, main, left="", right="", crumbs=""):
+    def layout(self, title, main, left="", right="", crumbs="", math=False):
         name = esc(CONFIG["name"])
         full = name if not title else f"{esc(title)} | {name}"
         footer = f'<footer>{esc(CONFIG["footer"])}</footer>' if CONFIG.get("footer") else ""
@@ -345,7 +401,7 @@ class Site:
 if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)t='dark';
 if(t==='dark')d.dataset.theme='dark';if(v==='list')d.dataset.view='list'}})()</script>
 <link rel="stylesheet" href="{url('/theme/style.css')}">
-</head>
+{MATHJAX if math else ""}</head>
 <body>
 <header class="top">
   <a class="brand" href="{url('/')}">{icon('logo')}<span>{name}</span></a>
@@ -461,6 +517,7 @@ if(t==='dark')d.dataset.theme='dark';if(v==='list')d.dataset.view='list'}})()</s
                     right=self.actions(False, self.edit_link(page) + self.new_link("page", page.parent))
                     + toc + self.details(page),
                     crumbs=self.crumbs(page),
+                    math="arithmatex" in page.html,
                 )
         return r
 
@@ -512,20 +569,27 @@ def write_text(path, text):
         fh.write(text)
 
 
-def write_meta(folder, title, desc):
+def write_meta(folder, title, desc, cover=None):
     meta_file = folder / "_meta.json"
     meta = json.loads(meta_file.read_text("utf-8")) if meta_file.exists() else {}
     meta.update(title=title, description=desc)
+    if cover:
+        name = "cover" + Path(cover[0]).suffix.lower()
+        (folder / name).write_bytes(cover[1])
+        meta["cover"] = name
     write_text(meta_file, json.dumps(meta, indent=2, ensure_ascii=False) + "\n")
 
 
-def save(site, kind, parent, node, title, form):
+def save(site, kind, parent, node, title, form, files):
     """Create or update an item on disk and return its path."""
+    cover = files.get("cover")
+    if cover and Path(cover[0]).suffix.lower() not in IMAGE_EXT:
+        raise ValueError(IMAGE_ERROR)
     body = form.get("body", "").replace("\r\n", "\n").strip("\n")
     desc = " ".join(form.get("description", "").split())
     page_text = f"# {title}\n\n{body}\n" if body else f"# {title}\n"
     if node:
-        write_text(node.path, page_text) if kind == "page" else write_meta(node.path, title, desc)
+        write_text(node.path, page_text) if kind == "page" else write_meta(node.path, title, desc, cover)
         return node.path
     folder = parent.path if parent else CONTENT
     folder.mkdir(parents=True, exist_ok=True)
@@ -545,8 +609,51 @@ def save(site, kind, parent, node, title, form):
     else:
         dest = folder / name
         dest.mkdir()
-        write_meta(dest, title, desc)
+        write_meta(dest, title, desc, cover)
     return dest
+
+
+def save_image(folder, name, data):
+    """Store an uploaded image next to the pages that use it; returns the path to put in Markdown."""
+    ext = Path(name).suffix.lower()
+    if ext not in IMAGE_EXT:
+        raise ValueError(IMAGE_ERROR)
+    if not data:
+        raise ValueError("The file is empty.")
+    images = folder / "_images"
+    images.mkdir(exist_ok=True)
+    base = slugify(Path(name).stem)
+    base = "image" if base == "untitled" else base
+    dest, n = images / f"{base}{ext}", 2
+    while dest.exists():
+        dest, n = images / f"{base}-{n}{ext}", n + 1
+    dest.write_bytes(data)
+    return f"_images/{dest.name}"
+
+
+def trash(node):
+    """Deleting moves the file or folder to content/_trash so it can be recovered."""
+    bin_dir = CONTENT / "_trash"
+    bin_dir.mkdir(exist_ok=True)
+    shutil.move(str(node.path), str(bin_dir / f"{datetime.now():%Y%m%d-%H%M%S}-{node.path.name}"))
+
+
+def parse_form(headers, raw):
+    """Return (fields, files) from a urlencoded or multipart form body."""
+    ctype = headers.get("Content-Type", "")
+    form, files = {}, {}
+    if ctype.startswith("multipart/form-data"):
+        head = b"Content-Type: " + ctype.encode("latin-1") + b"\r\n\r\n"
+        for part in BytesParser(policy=policy.HTTP).parsebytes(head + raw).iter_parts():
+            name = part.get_param("name", header="content-disposition")
+            data = part.get_payload(decode=True) or b""
+            if part.get_filename() is None:
+                form[name] = data.decode("utf-8", "replace")
+            elif data:
+                files[name] = (part.get_filename(), data)
+    else:
+        form = {k: v[0] for k, v in parse_qs(raw.decode("utf-8", "replace"), keep_blank_values=True).items()}
+    return form, files
 
 
 # ---------- serve ----------
@@ -593,7 +700,9 @@ class Handler(BaseHTTPRequestHandler):
         ctype = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
         if ctype.startswith("text/") or ctype.endswith(("javascript", "json")):
             ctype += "; charset=utf-8"
-        self.send(200, target.read_bytes(), ctype)
+        safe = [("X-Content-Type-Options", "nosniff"),
+                ("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")]
+        self.send(200, target.read_bytes(), ctype, headers=safe if base is CONTENT else ())
 
     def do_GET(self):
         path = unquote(urlparse(self.path).path)
@@ -604,7 +713,12 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/theme/"):
             return self.send_file(THEME, path[7:])
         if path.startswith("/files/"):
+            if path.startswith("/files/_trash"):
+                return self.send(404, site.not_found())
             return self.send_file(CONTENT, path[7:])
+        if path == "/delete/":
+            node = site.by_route.get(parse_qs(urlparse(self.path).query).get("at", [""])[0])
+            return self.send(200, site.delete_page(node)) if node else self.send(404, site.not_found())
         if path in ("/new/", "/edit/"):
             ctx = edit_context(site, path, parse_qs(urlparse(self.path).query))
             return self.send(200, site.form_page(*ctx)) if ctx else self.send(404, site.not_found())
@@ -621,19 +735,43 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
         path = unquote(parsed.path)
+        query = parse_qs(parsed.query)
+        plain = "text/plain; charset=utf-8"
         origin = self.headers.get("Origin")
         cross_site = self.headers.get("Sec-Fetch-Site", "same-origin") not in ("same-origin", "none")
         if cross_site or (origin and urlparse(origin).netloc != self.headers.get("Host")):
-            return self.send(403, "Forbidden", "text/plain; charset=utf-8")
+            return self.send(403, "Forbidden", plain)
         length = int(self.headers.get("Content-Length") or 0)
-        if length > 5_000_000:
-            return self.send(413, "Too large", "text/plain; charset=utf-8")
-        raw = self.rfile.read(length).decode("utf-8", "replace")
-        form = {k: v[0] for k, v in parse_qs(raw, keep_blank_values=True).items()}
-        if path == "/preview":
-            return self.send(200, render_markdown(form.get("body", ""))[0])
+        if length > MAX_UPLOAD:
+            return self.send(413, "That file is too large (the limit is 20 MB).", plain)
+        raw = self.rfile.read(length)
         site = self.current()
-        ctx = edit_context(site, path, parse_qs(parsed.query)) if path in ("/new/", "/edit/") else None
+        folder = site.by_route.get(query.get("in", [""])[0])
+        if path == "/upload":
+            if not folder or folder.kind not in ("book", "chapter"):
+                return self.send(404, "Unknown book or chapter.", plain)
+            try:
+                rel = save_image(folder.path, query.get("name", ["image.png"])[0], raw)
+            except ValueError as exc:
+                return self.send(400, str(exc), plain)
+            return self.send(200, json.dumps({"path": rel}), "application/json; charset=utf-8")
+        form, files = parse_form(self.headers, raw)
+        if path == "/preview":
+            # A stand-in page, so links and images resolve as they will once saved.
+            draft = SimpleNamespace(path=(folder.path if folder else CONTENT) / "_draft.md", body=form.get("body", ""))
+            site.render_page(draft)
+            return self.send(200, draft.html)
+        if path == "/delete/":
+            node = site.by_route.get(query.get("at", [""])[0])
+            if not node:
+                return self.send(404, site.not_found())
+            back = node.parent.url if node.parent else "/"
+            try:
+                trash(node)
+            except OSError as exc:
+                return self.send(500, site.delete_page(node, f"Could not delete: {exc!r}"))
+            return self.send(303, "", headers=[("Location", back)])
+        ctx = edit_context(site, path, query) if path in ("/new/", "/edit/") else None
         if not ctx:
             return self.send(404, site.not_found())
         kind, parent, node = ctx
@@ -641,9 +779,11 @@ class Handler(BaseHTTPRequestHandler):
         if not title:
             return self.send(400, site.form_page(kind, parent, node, form, "Please enter a title."))
         try:
-            dest = save(site, kind, parent, node, title, form)
+            dest = save(site, kind, parent, node, title, form, files)
             saved = self.current().by_path[dest.resolve()]
-        except (OSError, KeyError, ValueError) as exc:
+        except ValueError as exc:
+            return self.send(400, site.form_page(kind, parent, node, form, str(exc)))
+        except (OSError, KeyError) as exc:
             return self.send(500, site.form_page(kind, parent, node, form, f"Could not save: {exc!r}"))
         self.send(303, "", headers=[("Location", saved.url)])
 
@@ -674,7 +814,7 @@ def build():
     (OUT / "search.json").write_text(site.search_index(), "utf-8")
     shutil.copytree(THEME, OUT / "theme")
     if CONTENT.is_dir():
-        shutil.copytree(CONTENT, OUT / "files", ignore=shutil.ignore_patterns("*.md", "_meta.json"))
+        shutil.copytree(CONTENT, OUT / "files", ignore=shutil.ignore_patterns("*.md", "_meta.json", "_trash"))
     print(f"Built {len(site.routes)} pages into {OUT}")
 
 

@@ -206,6 +206,8 @@ mark { background: #fff2a8; color: #222; border-radius: 2px; padding: 0 1px; }
 }
 .search-big input:focus { border-color: var(--primary); }
 
+[hidden] { display: none !important; }
+
 /* ---------- forms ---------- */
 .edit label { display: block; margin-bottom: 18px; font-weight: 600; color: var(--heading); font-size: 0.9rem; }
 .edit label small { font-weight: 400; color: var(--muted); }
@@ -240,6 +242,16 @@ mark { background: #fff2a8; color: #222; border-radius: 2px; padding: 0 1px; }
 .btn:hover { background: #185a8a; text-decoration: none; }
 .btn.ghost { color: var(--text); background: transparent; border-color: var(--border); }
 .btn.ghost:hover { background: var(--hover); }
+.btn.small { padding: 4px 12px; font-size: 0.85rem; }
+.btn.danger { background: #c0392b; border-color: #c0392b; }
+.btn.danger:hover { background: #a03024; }
+.edit label[for="editor"] { margin-bottom: 6px; }
+.edit #editor { margin-bottom: 18px; }
+.edit #editor.dragging { border-color: var(--primary); border-style: dashed; }
+.edit input[type="file"] { padding: 7px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hint { font-size: 0.82rem; color: var(--muted); }
+.arithmatex { overflow-x: auto; overflow-y: hidden; }
 .error { color: #c0392b; font-weight: 600; }
 .preview { margin-bottom: 18px; padding: 20px 24px; border: 1px dashed var(--border); border-radius: 4px; }
 

@@ -6,6 +6,46 @@
     set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   };
 
+  // ---- page editor: images and equations ----
+  var editor = document.getElementById('editor');
+  function insert(text) {
+    editor.setRangeText(text, editor.selectionStart, editor.selectionEnd, 'end');
+    editor.focus();
+  }
+  function uploadImages(files) {
+    var status = document.getElementById('upload-status');
+    var images = Array.prototype.filter.call(files || [], function (f) { return /^image\//.test(f.type); });
+    if (!images.length) return false;
+    images.reduce(function (chain, file) {
+      return chain.then(function () {
+        status.textContent = 'Uploading ' + (file.name || 'image') + '...';
+        var name = file.name || 'image.png';
+        return fetch(base + '/upload?in=' + encodeURIComponent(editor.form.dataset.in) +
+          '&name=' + encodeURIComponent(name), { method: 'POST', body: file }).then(function (r) {
+          if (!r.ok) return r.text().then(function (msg) { throw new Error(msg); });
+          return r.json();
+        }).then(function (data) {
+          insert('![' + name.replace(/\.[^.]+$/, '').replace(/[\[\]]/g, '') + '](' + data.path + ')\n');
+          status.textContent = 'Image added.';
+        });
+      });
+    }, Promise.resolve()).catch(function (err) { status.textContent = err.message || 'Upload failed.'; });
+    return true;
+  }
+  if (editor) {
+    var picker = document.getElementById('image-file');
+    picker.addEventListener('change', function () { uploadImages(picker.files); picker.value = ''; });
+    editor.addEventListener('paste', function (e) {
+      if (uploadImages(e.clipboardData && e.clipboardData.files)) e.preventDefault();
+    });
+    editor.addEventListener('dragover', function (e) { e.preventDefault(); editor.classList.add('dragging'); });
+    editor.addEventListener('dragleave', function () { editor.classList.remove('dragging'); });
+    editor.addEventListener('drop', function (e) {
+      editor.classList.remove('dragging');
+      if (uploadImages(e.dataTransfer && e.dataTransfer.files)) e.preventDefault();
+    });
+  }
+
   // ---- theme and list/grid toggles ----
   function labels() {
     document.querySelectorAll('[data-label="theme"]').forEach(function (el) {
@@ -22,16 +62,19 @@
     if (btn.dataset.action === 'preview') {
       var box = document.getElementById('preview');
       if (!box.hidden) { box.hidden = true; btn.textContent = 'Preview'; return; }
-      fetch(base + '/preview', {
+      fetch(base + '/preview?in=' + encodeURIComponent(editor.form.dataset.in || ''), {
         method: 'POST',
-        body: new URLSearchParams({ body: document.getElementById('editor').value })
+        body: new URLSearchParams({ body: editor.value })
       }).then(function (r) { return r.text(); }).then(function (out) {
         box.innerHTML = out || '<p class="empty">Nothing to preview yet.</p>';
         box.hidden = false;
         btn.textContent = 'Hide preview';
+        if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([box]);
       });
       return;
     }
+    if (btn.dataset.action === 'image') { document.getElementById('image-file').click(); return; }
+    if (btn.dataset.action === 'equation') { insert('\n\n$$\nE = mc^2\n$$\n\n'); return; }
     if (btn.dataset.action === 'theme') {
       var dark = root.dataset.theme !== 'dark';
       if (dark) root.dataset.theme = 'dark'; else delete root.dataset.theme;
