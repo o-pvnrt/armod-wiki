@@ -56,8 +56,15 @@ ICONS = {
     "edit": '<path d="M16.8 3.2l4 4L8.5 19.5l-5 1 1-5zM5.9 16.3l-.4 2.2 2.2-.4z"/>',
     "trash": '<path d="M9 3h6l1 2h4v2H4V5h4zM6 9h12l-1 12H7z"/>',
     "sort": '<path d="M8 4l4 4.5H9.25V20h-2.5V8.5H4zM16 20l-4-4.5h2.75V4h2.5v11.5H20z"/>',
-    "logo": '<circle cx="12" cy="12" r="10"/>',
 }
+
+# The ARMoD head: eyes glancing towards an amber chevron. The head takes the header's
+# text colour and the eyes are cut out of it; theme/favicon.svg is the same shape in colour.
+LOGO = ('<svg class="icon logo" viewBox="0 0 25 15" aria-hidden="true">'
+        '<path fill-rule="evenodd" d="M3.3 0H16.7A3.3 3.3 0 0 1 20 3.3V11.7A3.3 3.3 0 0 1 16.7 15'
+        'H3.3A3.3 3.3 0 0 1 0 11.7V3.3A3.3 3.3 0 0 1 3.3 0ZM8.2 6.3a1.6 1.6 0 0 1 3.2 0v2.4'
+        'a1.6 1.6 0 0 1-3.2 0ZM13.6 6.3a1.6 1.6 0 0 1 3.2 0v2.4a1.6 1.6 0 0 1-3.2 0Z"/>'
+        '<path fill="#F2A541" d="M21.6 5.3H23.4L25 7.5L23.4 9.7H21.6L23.2 7.5Z"/></svg>')
 
 
 def icon(name):
@@ -222,7 +229,21 @@ class Site:
                 yield t["level"], t["id"], t["name"]
                 yield from flat(t["children"])
 
-        page.toc = list(flat(toc_tokens))
+        # Number the sections (## = 1, ### = 1.1, ...) in the page and in "On this page".
+        counters, numbers = [0] * 7, {}
+        for lvl, tid, _ in flat(toc_tokens):
+            if lvl < 2:
+                continue
+            counters[lvl] += 1
+            counters[lvl + 1:] = [0] * (6 - lvl)
+            numbers[tid] = ".".join(str(n or 1) for n in counters[2:lvl + 1])
+        page.html = re.sub(
+            r'(<h[2-6]\b[^>]*\bid="([^"]+)"[^>]*>)',
+            lambda m: m.group(1) + (f'<span class="secnum">{numbers[m.group(2)]}</span> '
+                                    if m.group(2) in numbers else ""),
+            page.html)
+        page.toc = [(lvl, tid, f"{numbers[tid]} {name}" if tid in numbers else name)
+                    for lvl, tid, name in flat(toc_tokens)]
 
     # ---------- fragments ----------
 
@@ -452,11 +473,12 @@ class Site:
 <script>(function(){{var d=document.documentElement,t,v;try{{t=localStorage.getItem('wiki-theme');v=localStorage.getItem('wiki-view')}}catch(e){{}}
 if(!t&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)t='dark';
 if(t==='dark')d.dataset.theme='dark';if(v==='list')d.dataset.view='list'}})()</script>
+<link rel="icon" type="image/svg+xml" href="{url('/theme/favicon.svg')}">
 <link rel="stylesheet" href="{url('/theme/style.css')}">
 {MATHJAX if math else ""}</head>
 <body>
 <header class="top">
-  <a class="brand" href="{url('/')}">{icon('logo')}<span>{name}</span></a>
+  <a class="brand" href="{url('/')}">{LOGO}<span>{name}</span></a>
   <form class="search" action="{url('/search/')}" method="get" role="search">
     {icon('search')}<input type="search" name="q" placeholder="Search" aria-label="Search" autocomplete="off">
   </form>

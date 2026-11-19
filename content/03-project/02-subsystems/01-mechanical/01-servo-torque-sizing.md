@@ -1,14 +1,13 @@
 # Servo Torque Sizing
 
-This page explains how the joint torques used to size the arm servos were calculated.
-The numbers come from the `Calculations` sheet of `spreadsheets/servo-design.ods` in the
-`armod-tools` repository; the servo candidates are in the `Options` sheet of the same file.
+This page explains how the joint torques used to size the arm servos were calculated, and
+compares them with the servo candidates.
 
 ## Approach
 
 Each arm is treated as a two-link planar chain (upper arm and forearm) carrying a small
-payload at the hand. For every joint the torque is estimated in its **worst-case static
-pose**, that is, with the arm stretched out horizontally so that every mass has the longest
+payload at the hand. For every joint the torque is estimated in its worst-case static
+pose, that is, with the arm stretched out horizontally so that every mass has the longest
 possible lever arm about the joint. Three contributions are then stacked:
 
 1. **Static torque** – holding the links, the downstream servos and the payload against gravity.
@@ -30,6 +29,9 @@ $$
 
 J1 and J2 see the same load (the whole arm at full reach), and so do J3 and J4 (the forearm
 and payload at full reach), so there are only two torque cases to calculate.
+
+Apart from the arms, the head has two joints of its own: JN1 and JN2, for pan and tilt. With
+four joints in each arm and two in the head, the robot has ten servos in total.
 
 ## Inputs
 
@@ -57,7 +59,7 @@ This gives about 23 g for the forearm and 34 g for the upper arm.
 
 !!! note
     These are bare-tube masses. Brackets, infill and fasteners are not included, so the
-    real links will be heavier; see [Open points](#open-points).
+    real links will be heavier.
 
 ## Static torque
 
@@ -136,25 +138,22 @@ Servo data sheets quote stall torque in kg·cm, so the results are converted wit
 
 ## Comparison with the servo candidates
 
-The preferred architecture in the `Options` sheet uses ten servos of two sizes: the larger
+The preferred architecture uses ten servos of two sizes: the larger
 one for shoulder pitch and roll, the smaller one for upper-arm rotation, elbow flexion and
 the head.
 
 | Joints | Required (kg·cm) | Servo | Stall torque (kg·cm) | Stall / required |
 |--------|-----------------:|-------|---------------------:|-----------------:|
 | J1, J2 | 3.37 | Dynamixel XL430-W250-T | 15.3 | 4.5 |
-| J3, J4 | 0.50 | Dynamixel XL330-M288-T | 5.3 | 10.5 |
+| J3, J4, JN1 , JN2 | 0.50 | Dynamixel XL330-M288-T | 5.3 | 10.5 |
+| J1, J2 | 3.37 | STS3215-C044 | 15.3 | 4.5 |
+| J3, J4, JN1 , JN2 | 0.50 | STS3032| 5.3 | 10.5 |
 
-The head joints are not part of this calculation.
+The head joints are not part of this calculation, and are assumed within a similar range of
+torques as the smallest motors. They will use the same servos as the rest of the robot.
 
-## Open points
+**Due to availability issues current design only uses STS3215-C044 motors.**
 
-- **Link masses.** The bare-tube estimate is a lower bound. The real printed parts
-  (brackets, infill, fasteners) will weigh more, so the link masses should be replaced by
-  CAD or weighed values. As a sensitivity check, links ten times heavier (227 g and 340 g)
-  would raise the requirement to 11.2 kg·cm for J1/J2 and 1.7 kg·cm for J3/J4.
-- **Safety factor on the static case.** The spreadsheet has a separate safety factor for
-  the static torques, currently set to 1.
-- **Payload.** 30 g at the hand is an assumption; the result for J1/J2 should be re-checked
-  once the hand design is known.
-- **Head and other joints** have not been sized yet, but will use one of the two servos selected.
+The final build will use the STS3215-C044 for all ten joints. As an open option for the
+future, the STS3032 could replace it in J3, J4 and the head joints: with a stall torque about
+ten times the required one, it would be enough for them.

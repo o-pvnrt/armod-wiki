@@ -66,6 +66,7 @@ h1, h2, h3, h4, h5 { color: var(--heading); font-weight: 400; margin: 0; }
 .brand { display: flex; align-items: center; gap: 10px; font-size: 1.35rem; font-weight: 600; }
 .brand:hover { text-decoration: none; }
 .brand .icon { width: 30px; height: 30px; }
+.brand .logo { width: 40px; height: 24px; }
 .search { position: relative; display: flex; align-items: center; }
 .search .icon { position: absolute; left: 14px; opacity: 0.8; pointer-events: none; }
 .search input {
@@ -281,6 +282,9 @@ mark { background: #fff2a8; color: #222; border-radius: 2px; padding: 0 1px; }
 .content h4 { font-size: 1.1rem; font-weight: 600; margin: 1.2em 0 0.3em; }
 .content p, .content ul, .content ol, .content table, .content pre, .content blockquote { margin: 0 0 1em; }
 .content img { max-width: 100%; height: auto; border-radius: 4px; }
+.content img.center { display: block; margin-left: auto; margin-right: auto; }
+.content .center { text-align: center; }
+.content .secnum { margin-right: 0.35em; }
 .content code {
   font: 0.88em/1.5 Consolas, "Cascadia Mono", Menlo, monospace;
   background: var(--code-bg);

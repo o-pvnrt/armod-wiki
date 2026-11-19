@@ -1,5 +1,19 @@
 # Markdown cheat sheet
 
+## Sections
+
+The `# Heading` at the top is the page title. Split the page into sections with `##`, and
+into subsections with `###` and `####`. Sections are numbered automatically (1, 1.1,
+1.1.1 ...) on the page and in *On this page*, so do not type the numbers yourself:
+
+```markdown
+## Power System
+### Battery
+### Voltage regulators
+```
+
+shows up as *1 Power System*, *1.1 Battery* and *1.2 Voltage regulators*.
+
 ## Text
 
 Plain paragraphs, **bold**, *italic*, `inline code` and [links](https://www.markdownguide.org/).
@@ -33,10 +47,22 @@ In the page editor, click **Insert image**, or paste or drop an image into the t
 file is stored next to the page in an `_images` folder and a line like this is added:
 
 ```markdown
-![Wiring diagram](_images/wiring-diagram.png)
+![Wiring diagram](_images/wiring-diagram.png){: .center }
 ```
 
 Add `{ width=300 }` right after the closing bracket to set a size.
+
+To centre an image, add `{: .center }` right after it. A caption is centred the same way,
+by putting `{: .center }` on the line right after it. Both can be combined with a size:
+
+```markdown
+![Wiring diagram](_images/wiring-diagram.png){: .center width=300 }
+
+*Figure 1: Wiring diagram of the robot.*
+{: .center }
+```
+
+Images added with **Insert image** are centred by default.
 
 ## Equations
 

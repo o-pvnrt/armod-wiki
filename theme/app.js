@@ -25,7 +25,7 @@
           if (!r.ok) return r.text().then(function (msg) { throw new Error(msg); });
           return r.json();
         }).then(function (data) {
-          insert('![' + name.replace(/\.[^.]+$/, '').replace(/[\[\]]/g, '') + '](' + data.path + ')\n');
+          insert('![' + name.replace(/\.[^.]+$/, '').replace(/[\[\]]/g, '') + '](' + data.path + '){: .center }\n');
           status.textContent = 'Image added.';
         });
       });
