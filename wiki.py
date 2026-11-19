@@ -56,7 +56,7 @@ ICONS = {
     "edit": '<path d="M16.8 3.2l4 4L8.5 19.5l-5 1 1-5zM5.9 16.3l-.4 2.2 2.2-.4z"/>',
     "trash": '<path d="M9 3h6l1 2h4v2H4V5h4zM6 9h12l-1 12H7z"/>',
     "sort": '<path d="M8 4l4 4.5H9.25V20h-2.5V8.5H4zM16 20l-4-4.5h2.75V4h2.5v11.5H20z"/>',
-    "logo": '<path d="M12 2l9 5v10l-9 5-9-5V7zm0 2.300L5.800 7.700 12 11.200l6.200-3.500zM5 9.400v6.400l6 3.400v-6.400zm14 0l-6 3.400v6.400l6-3.400z"/>',
+    "logo": '<circle cx="12" cy="12" r="10"/>',
 }
 
 
@@ -329,6 +329,8 @@ class Site:
         attrs = ""
         if kind == "page":
             body = v.get("body", node.body.strip("\n") if node else "")
+            if node:
+                fields += self.location_field(v.get("parent", node.parent.url))
             fields += ('<label for="editor">Content <small>(Markdown)</small></label>'
                        '<div class="toolbar">'
                        '<button type="button" class="btn ghost small" data-action="image">Insert image</button>'
@@ -361,6 +363,21 @@ class Site:
             crumbs=self.crumbs(anchor, extra=heading),
             math=kind == "page",
         )
+
+    def location_field(self, selected):
+        """A picker of every book and chapter a page can live in."""
+        def option(n, label):
+            sel = " selected" if n.url == selected else ""
+            return f'<option value="{esc(n.url)}"{sel}>{esc(label)}</option>'
+
+        groups = []
+        for shelf in self.shelves:
+            for book in shelf.children:
+                opts = option(book, f"{book.title} (no chapter)")
+                opts += "".join(option(c, c.title) for c in book.children if c.kind == "chapter")
+                groups.append(f'<optgroup label="{esc(shelf.title)} › {esc(book.title)}">{opts}</optgroup>')
+        return ('<label>Location <small>(book or chapter; changing it moves the page)</small>'
+                f'<select name="parent">{"".join(groups)}</select></label>')
 
     def delete_page(self, node, error=""):
         if node.kind == "shelf":
@@ -628,20 +645,19 @@ def save(site, kind, parent, node, title, form, files):
     desc = " ".join(form.get("description", "").split())
     page_text = f"# {title}\n\n{body}\n" if body else f"# {title}\n"
     if node:
-        write_text(node.path, page_text) if kind == "page" else write_meta(node.path, title, desc, cover)
-        return node.path
+        if kind != "page":
+            write_meta(node.path, title, desc, cover)
+            return node.path
+        target = site.by_route.get(form.get("parent", node.parent.url))
+        if not target or target.kind not in ALLOWED_PARENT["page"]:
+            raise ValueError("Please choose a book or chapter for the page.")
+        write_text(node.path, page_text)
+        if target is node.parent:
+            return node.path
+        return move_page(node, target)
     folder = parent.path if parent else CONTENT
     folder.mkdir(parents=True, exist_ok=True)
-    siblings = entries(folder)
-    taken = {slugify(p.stem if p.is_file() else p.name) for p in siblings}
-    if kind == "book":
-        taken |= {b.slug for b in site.books}
-    slug = base = slugify(title)
-    n = 2
-    while slug in taken:
-        slug, n = f"{base}-{n}", n + 1
-    numbers = [int(m.group(1)) for m in (re.match(r"(\d+)[-_. ]", p.name) for p in siblings) if m]
-    name = f"{max(numbers, default=0) + 1:02d}-{slug}"
+    name = free_name(folder, slugify(title), {b.slug for b in site.books} if kind == "book" else ())
     if kind == "page":
         dest = folder / f"{name}.md"
         write_text(dest, page_text)
@@ -650,6 +666,29 @@ def save(site, kind, parent, node, title, form, files):
         dest.mkdir()
         write_meta(dest, title, desc, cover)
     return dest
+
+
+def free_name(folder, base, taken=()):
+    """A `NN-slug` name for a new item placed last in `folder`, with a slug none of its siblings use."""
+    siblings = entries(folder)
+    taken = set(taken) | {slugify(p.stem if p.is_file() else p.name) for p in siblings}
+    slug, n = base, 2
+    while slug in taken:
+        slug, n = f"{base}-{n}", n + 1
+    numbers = [int(m.group(1)) for m in (re.match(r"(\d+)[-_. ]", p.name) for p in siblings) if m]
+    return f"{max(numbers, default=0) + 1:02d}-{slug}"
+
+
+def move_page(node, target):
+    """Move a page to the end of another book or chapter, keeping links to and from it working."""
+    old = node.path.resolve()
+    new = target.path.resolve() / (free_name(target.path, node.slug) + node.path.suffix)
+    moves = {old: new}
+    edits = relink(moves)
+    rename_all(moves)
+    for path, text in edits.items():
+        path.write_bytes(text.encode("utf-8"))
+    return new
 
 
 def save_image(folder, name, data):

@@ -211,7 +211,7 @@ mark { background: #fff2a8; color: #222; border-radius: 2px; padding: 0 1px; }
 /* ---------- forms ---------- */
 .edit label { display: block; margin-bottom: 18px; font-weight: 600; color: var(--heading); font-size: 0.9rem; }
 .edit label small { font-weight: 400; color: var(--muted); }
-.edit input, .edit textarea {
+.edit input, .edit textarea, .edit select {
   display: block;
   width: 100%;
   margin-top: 6px;
@@ -226,7 +226,7 @@ mark { background: #fff2a8; color: #222; border-radius: 2px; padding: 0 1px; }
   resize: vertical;
 }
 .edit #editor { font: 0.9rem/1.55 Consolas, "Cascadia Mono", Menlo, monospace; }
-.edit input:focus, .edit textarea:focus { border-color: var(--primary); }
+.edit input:focus, .edit textarea:focus, .edit select:focus { border-color: var(--primary); }
 .buttons { display: flex; flex-wrap: wrap; gap: 10px; }
 .btn {
   display: inline-block;

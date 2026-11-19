@@ -27,6 +27,8 @@ files in `content/`.
 - **Reorder:** the home page and every shelf, book and chapter have a *Reorder* action.
   Drag the items (or use the arrows) and save; the `01-`, `02-` ... prefixes are
   renumbered on disk and Markdown links to the renamed files are updated.
+- **Move a page:** in the page editor, pick another book or chapter under *Location* and
+  save. The page goes to the end of that chapter, and links to and from it are updated.
 - **Delete:** every shelf, book, chapter and page has a *Delete* action. Deleted items
   are moved to `content/_trash`; move them back to restore, or empty that folder by hand.
 

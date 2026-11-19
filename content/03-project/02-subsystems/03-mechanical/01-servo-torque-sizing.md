@@ -1,4 +1,4 @@
-# Servo torque sizing
+# Servo Torque Sizing
 
 This page explains how the joint torques used to size the arm servos were calculated.
 The numbers come from the `Calculations` sheet of `spreadsheets/servo-design.ods` in the
