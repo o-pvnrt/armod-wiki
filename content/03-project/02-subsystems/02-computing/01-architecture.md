@@ -47,4 +47,33 @@ ARM single-board computers, and especially the Raspberry Pi line (used in Poppy 
 
 ## Functional Architecture
 
-![computing_functional_architecture.drawio](_images/computing-functional-architecture-drawio.png){: .center }
+Once the Raspberry Pi 5 is selected as the main processor, its role in the robot can be broken down into the high-level tasks it runs. As shown in Figure 1, the software on the SBC is organised into six functional blocks. Solid arrows in the diagram represent internal data flow within the SBC, while dashed arrows represent digital links to other subsystems. At a general level, information coming from the main robot through ROS2 drives the spoken messages, gestures, gaze cues, and LED states, while local camera tracking updates where the eyes and head point.
+
+![SBC functional architecture](_images/computing-functional-architecture-drawio.png){: .center }
+
+*Figure 1: Functional architecture of the SBC (Raspberry Pi 5).*
+{: .center }
+
+### ROS Communication
+
+This block manages the wireless link over Wi-Fi between the SBC and the ROS nodes running on the main mobile robot. Its main job is to gather context from the base through three tasks: receiving the robot's internal operational state, receiving its potential navigation paths, and receiving relevant sensor data. This information gives the SBC the context needed to trigger appropriate speech, gestures, facial cues, and LED patterns, while the two-way connection also allows the ARMoD to report its own state back to the main system, if implemented in the AMR/AMV.
+
+### Speech
+
+The Speech block produces the voice messages used to warn or inform people nearby, especially when they are not looking directly at the robot. Internally, it follows three steps: selecting a suitable predefined phrase for the current situation, running a Text-to-Speech (TTS) engine to generate the voice signal, and sending the digital audio output to the Digital-to-Analog Converter (DAC) of the audio subsystem, which then passes it on to the amplifier and speaker.
+
+### Facial Expressions
+
+The Facial Expressions block controls what is shown on the head display, which is currently dedicated to the robot's eyes. It calculates the target gaze direction, renders the eye graphics accordingly, and sends the resulting video frames over a digital link to the screen. Together with state cues from the main robot, this block receives direct internal data from the Person Tracking block so that the rendered eyes can follow a person standing in front of the ARMoD.
+
+### Person Tracking
+
+To maintain eye contact and orient the head naturally, the SBC needs to know where people are relative to the robot. The Person Tracking block communicates over a two-way digital link with the head camera to configure the sensor and acquire image frames. It then runs a small vision model for person detection and outputs the detected person's position. Within the SBC, this position data is sent directly to both the Facial Expressions block and the Movement Orchestration block.
+
+### Movement Orchestration
+
+Rather than controlling the motors directly, the SBC decides at a high level which movements the ARMoD has to perform. This block combines arm gesture selection, used to point in a direction or express internal states, with head pan and tilt orientation towards the person detected by the tracking pipeline. Both types of motion are turned into high-level movement requests and passed internally to the MCU Communication block instead of going straight to external hardware.
+
+### MCU Communication
+
+The MCU Communication block acts as the hardware interface between the Raspberry Pi 5 and the microcontroller over a two-way UART link. On the outgoing side, it transmits the movement requests coming from Movement Orchestration so the MCU can handle low-level servo control, and sends LED pattern requests to indicate operational or error states. On the incoming side, it receives servo and power state feedback from the MCU, keeping the SBC aware of joint status and battery levels.
