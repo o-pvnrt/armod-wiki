@@ -124,6 +124,10 @@ footer { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 8
 .mini.current { background: var(--hover); font-weight: 600; color: var(--heading); }
 .mini:not([class*="kind-"]) .icon { color: var(--muted); }
 .nested { margin-left: 16px; padding-left: 6px; border-left: 2px solid var(--chapter); }
+.nav-chapter > summary { list-style: none; cursor: pointer; }
+.nav-chapter > summary::-webkit-details-marker { display: none; }
+.nav-chapter > summary::after { content: "▸"; margin-left: auto; color: var(--muted); transition: transform 0.15s; }
+.nav-chapter[open] > summary::after { transform: rotate(90deg); }
 .detail { margin: 0; padding: 3px 8px; font-size: 0.85rem; color: var(--muted); }
 .toc a { display: block; padding: 4px 8px; font-size: 0.88rem; color: var(--text); border-left: 2px solid var(--border); }
 .toc a:hover { color: var(--primary); border-color: var(--primary); text-decoration: none; }
@@ -193,6 +197,10 @@ footer { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 8
 .row p { margin: 2px 0 0; font-size: 0.85rem; color: var(--muted); }
 .row small { color: var(--muted); }
 .row-children { margin: 0 0 8px 21px; padding-left: 10px; border-left: 3px solid var(--chapter); }
+.row-chapter > summary { list-style: none; cursor: pointer; align-items: flex-start; }
+.row-chapter > summary::-webkit-details-marker { display: none; }
+.row-chapter > summary::after { content: "▸"; margin-left: auto; color: var(--muted); transition: transform 0.15s; }
+.row-chapter[open] > summary::after { transform: rotate(90deg); }
 mark { background: #fff2a8; color: #222; border-radius: 2px; padding: 0 1px; }
 
 .search-big input {
@@ -296,7 +304,8 @@ mark { background: #fff2a8; color: #222; border-radius: 2px; padding: 0 1px; }
 .content pre code { background: none; border: 0; padding: 0; }
 .content blockquote { border-left: 4px solid var(--primary); padding: 6px 16px; color: var(--muted); background: var(--hover); }
 .content blockquote > :last-child { margin-bottom: 0; }
-.content table { border-collapse: collapse; display: block; overflow-x: auto; max-width: 100%; }
+.content table { border-collapse: collapse; display: block; overflow-x: auto; width: fit-content; max-width: 100%; }
+.content [align="center"] table, .content .center table { margin-left: auto; margin-right: auto; }
 .content th, .content td { border: 1px solid var(--border); padding: 7px 12px; text-align: left; }
 .content th { background: var(--hover); color: var(--heading); font-weight: 600; }
 .content hr { border: 0; border-top: 1px solid var(--border); margin: 2em 0; }

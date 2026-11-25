@@ -258,9 +258,7 @@ class Site:
         return (
             f'<a class="card kind-{node.kind}" href="{node.url}">'
             f'<div class="cover" style="{style}">{icon(node.kind)}</div>'
-            f'<div class="card-body"><h3>{esc(node.title)}</h3><p>{esc(node.desc)}</p></div>'
-            f'<div class="card-meta"><span>Created {when(node.created)}</span>'
-            f"<span>Updated {when(node.updated)}</span></div></a>"
+            f'<div class="card-body"><h3>{esc(node.title)}</h3><p>{esc(node.desc)}</p></div></a>'
         )
 
     def grid(self, nodes, empty):
@@ -278,9 +276,16 @@ class Site:
     def rows(self, nodes):
         out = []
         for n in nodes:
-            out.append(self.row(n))
             if n.kind == "chapter" and n.children:
-                out.append('<div class="row-children">' + "".join(self.row(c) for c in n.children) + "</div>")
+                blurb = f"<p>{esc(n.desc)}</p>" if n.desc else ""
+                pages = "".join(self.row(c) for c in n.children)
+                out.append(
+                    f'<details class="row-chapter">'
+                    f'<summary class="row kind-chapter">{icon("chapter")}<div><h4>{esc(n.title)}</h4>{blurb}</div></summary>'
+                    f'<div class="row-children">{pages}</div></details>'
+                )
+            else:
+                out.append(self.row(n))
         return '<div class="rows">' + "".join(out) + "</div>"
 
     def mini_list(self, title, nodes):
@@ -434,11 +439,7 @@ class Site:
         )
 
     def details(self, node):
-        return (
-            f'<section class="side-block"><h5>Details</h5>'
-            f'<p class="detail">Created {when(node.created)}</p>'
-            f'<p class="detail">Updated {when(node.updated)}</p></section>'
-        )
+        return ""
 
     def book_nav(self, book, current):
         def link(n):
@@ -447,9 +448,17 @@ class Site:
 
         out = [link(book)]
         for child in book.children:
-            out.append(link(child))
-            if child.kind == "chapter":
-                out.append('<div class="nested">' + "".join(link(p) for p in child.children) + "</div>")
+            if child.kind == "chapter" and child.children:
+                is_open = " open" if (current is child or (current and current.parent is child)) else ""
+                cls = "mini kind-chapter" + (" current" if child is current else "")
+                pages = "".join(link(p) for p in child.children)
+                out.append(
+                    f'<details class="nav-chapter"{is_open}>'
+                    f'<summary class="{cls}">{icon("chapter")}<span>{esc(child.title)}</span></summary>'
+                    f'<div class="nested">{pages}</div></details>'
+                )
+            else:
+                out.append(link(child))
         return f'<section class="side-block booknav"><h5>Book navigation</h5>{"".join(out)}</section>'
 
     def crumbs(self, node=None, extra=None):
