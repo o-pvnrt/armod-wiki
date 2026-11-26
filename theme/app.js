@@ -105,6 +105,16 @@
       });
       return;
     }
+    if (btn.dataset.action === 'toggle-chapter') {
+      var box = btn.closest('.row-chapter, .nav-chapter');
+      var body = box && box.querySelector('.row-children, .nested');
+      if (!body) return;
+      var open = body.hidden;
+      body.hidden = !open;
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.title = open ? 'Hide pages' : 'Show pages';
+      return;
+    }
     if (btn.dataset.action === 'image') { document.getElementById('image-file').click(); return; }
     if (btn.dataset.action === 'equation') { insert('\n\n$$\nE = mc^2\n$$\n\n'); return; }
     if (btn.dataset.action === 'theme') {

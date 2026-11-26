@@ -268,21 +268,23 @@ class Site:
 
     def row(self, node):
         blurb = node.desc if node.kind != "page" else node.text[:160]
+        blurb_html = f"<p>{esc(blurb)}</p>" if blurb else ""
         return (
             f'<a class="row kind-{node.kind}" href="{node.url}">{icon(node.kind)}'
-            f"<div><h4>{esc(node.title)}</h4><p>{esc(blurb)}</p></div></a>"
+            f"<div><h4>{esc(node.title)}</h4>{blurb_html}</div></a>"
         )
 
     def rows(self, nodes):
         out = []
         for n in nodes:
             if n.kind == "chapter" and n.children:
-                blurb = f"<p>{esc(n.desc)}</p>" if n.desc else ""
                 pages = "".join(self.row(c) for c in n.children)
                 out.append(
-                    f'<details class="row-chapter">'
-                    f'<summary class="row kind-chapter">{icon("chapter")}<div><h4>{esc(n.title)}</h4>{blurb}</div></summary>'
-                    f'<div class="row-children">{pages}</div></details>'
+                    f'<div class="row-chapter">'
+                    f'<div class="row-chapter-head">{self.row(n)}'
+                    f'<button type="button" class="chapter-toggle" data-action="toggle-chapter" '
+                    f'aria-expanded="false" aria-label="Toggle pages in {esc(n.title)}" title="Show pages"></button></div>'
+                    f'<div class="row-children" hidden>{pages}</div></div>'
                 )
             else:
                 out.append(self.row(n))
@@ -449,13 +451,17 @@ class Site:
         out = [link(book)]
         for child in book.children:
             if child.kind == "chapter" and child.children:
-                is_open = " open" if (current is child or (current and current.parent is child)) else ""
-                cls = "mini kind-chapter" + (" current" if child is current else "")
+                is_open = current is child or (current and current.parent is child)
+                expanded = "true" if is_open else "false"
+                tip = "Hide pages" if is_open else "Show pages"
+                hidden = "" if is_open else " hidden"
                 pages = "".join(link(p) for p in child.children)
                 out.append(
-                    f'<details class="nav-chapter"{is_open}>'
-                    f'<summary class="{cls}">{icon("chapter")}<span>{esc(child.title)}</span></summary>'
-                    f'<div class="nested">{pages}</div></details>'
+                    f'<div class="nav-chapter">'
+                    f'<div class="nav-chapter-head">{link(child)}'
+                    f'<button type="button" class="chapter-toggle" data-action="toggle-chapter" '
+                    f'aria-expanded="{expanded}" aria-label="Toggle pages in {esc(child.title)}" title="{tip}"></button></div>'
+                    f'<div class="nested"{hidden}>{pages}</div></div>'
                 )
             else:
                 out.append(link(child))
